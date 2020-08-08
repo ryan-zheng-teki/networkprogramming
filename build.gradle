@@ -11,6 +11,12 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'maven-publish'
 
+
+    dependencies {
+        implementation group: 'io.netty', name: 'netty-all', version: '4.1.51.Final'
+    }
+
+
     repositories {
         mavenLocal()
         mavenCentral()

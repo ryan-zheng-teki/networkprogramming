@@ -5,6 +5,6 @@
 rootProject.name = 'NetworkProgramming'
 include 'NettyServer'
 include 'NettyClient'
-include 'ReactorNetty'
+include 'ReactorTcpClient'
+include 'ReactorTcpServer'
 include 'ReactiveProgramming'
-
