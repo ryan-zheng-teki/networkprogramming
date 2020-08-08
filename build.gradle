@@ -7,7 +7,6 @@ allprojects {
     version = '1.0-SNAPSHOT'
 }
 
-
 subprojects {
     apply plugin: 'java'
     apply plugin: 'maven-publish'
@@ -18,7 +17,15 @@ subprojects {
         jcenter()
     }
 
-    sourceCompatibility = '1.8'
+    compileJava {
+        sourceCompatibility = 11
+        targetCompatibility = 11
+    }
+
+    compileTestJava {
+        sourceCompatibility = 11
+        targetCompatibility = 11
+    }
 
     publishing {
         publications {

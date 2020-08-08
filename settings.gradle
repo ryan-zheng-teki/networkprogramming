@@ -3,8 +3,8 @@
  */
 
 rootProject.name = 'NetworkProgramming'
-include(':NettyServer')
-include(':NettyClient')
-include(':ReactorNetty')
-include(':ReactiveProgramming')
+include 'NettyServer'
+include 'NettyClient'
+include 'ReactorNetty'
+include 'ReactiveProgramming'
 
