@@ -7,10 +7,11 @@ import java.util.concurrent.TimeUnit;
 
 public class ReactiveTutorial {
     public static void main(String[] args) throws ExecutionException, InterruptedException {
-        combineAsynTogether();
+        //combineAsynTogether();
         // exceptionallyThrow();
         // timeoutTrial();
         // combineApplySequentialTask();
+        completedFutureCompleteWithResult();
     }
 
 
@@ -74,5 +75,21 @@ public class ReactiveTutorial {
             System.out.println(y);
             return y;
         });
+    }
+
+    public static void completedFutureCompleteWithResult() throws ExecutionException, InterruptedException {
+        CompletableFuture future = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(20000);
+                return getCurrentThreadId();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+
+        if(future.get() != null) {
+            System.out.println("current thread is "+Thread.currentThread().getId());
+        }
     }
 }
