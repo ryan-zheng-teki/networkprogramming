@@ -1,10 +1,13 @@
 package com.qsol.reactive;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -15,7 +18,8 @@ import java.util.stream.IntStream;
 public class FluxTutorial {
     public static void main(String[] args) throws InterruptedException {
         //From user perspective, this api is very simple.
-        coldFluxExample2();
+        //coldFluxExample2();
+        testSubscribeToMonoFunction();
     }
 
     public static void coldFluxExample1() {
@@ -52,5 +56,23 @@ public class FluxTutorial {
 
         executor.submit(() -> source.get(5))  //line 76
                 .get();
+    }
+
+
+    public static void testSubscribeToMonoFunction() {
+        Mono.just(simulateDataFromNetwork()).flatMapMany(Flux::fromIterable).subscribe( element -> {
+            System.out.println("going to print "+element);
+        });
+    }
+
+
+    private static Collection<String> simulateDataFromNetwork() {
+        System.out.println("I am called after subscribe");
+        return new ArrayList<String>() {
+            {
+                add("test-one");
+                add("test-two");
+            }
+        };
     }
 }

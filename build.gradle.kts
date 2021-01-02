@@ -3,14 +3,17 @@
  */
 
 allprojects {
-    group = 'org.example'
-    version = '1.0-SNAPSHOT'
+    group = "org.example"
+    version = "1.0-SNAPSHOT"
+
+    plugins {
+        id("java")
+        id("maven-publish")
+    }
 }
 
-subprojects {
-    apply plugin: 'java'
-    apply plugin: 'maven-publish'
 
+subprojects {
 
     dependencies {
         implementation group: 'io.netty', name: 'netty-all', version: '4.1.51.Final'

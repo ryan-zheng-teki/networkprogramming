@@ -1,6 +1,6 @@
 
 dependencies {
-    implementation 'io.netty:netty-all:4.1.50.Final'
+    implementation("io.netty:netty-all:4.1.50.Final")
 }
 
 jar {
