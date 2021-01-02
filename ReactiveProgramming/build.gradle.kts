@@ -1,12 +1,13 @@
-dependencies {
-    implementation group: 'junit', name: 'junit', version: '4.12'
-    implementation group: 'io.projectreactor', name: 'reactor-core', version: '3.3.8.RELEASE'
+plugins {
+    java
 }
 
-jar {
+dependencies {
+    implementation("io.projectreactor:reactor-core:3.3.8.RELEASE")
+}
+
+tasks.jar {
     manifest {
-        attributes(
-                "Main-Class": "com.qsol.reactive.ReactiveTutorial"
-        )
+        attributes["Main-Class"] = "com.qsol.reactive.ReactiveTutorial"
     }
 }
