@@ -1,5 +1,6 @@
 package com.qsol.reactive;
 
+<<<<<<< Updated upstream
 import reactor.core.publisher.Mono;
 
 public class MonoUsingWhenDemo {
