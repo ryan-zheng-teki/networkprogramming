@@ -5,8 +5,10 @@ import org.springframework.core.io.Resource;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,11 +17,10 @@ public class CleaningUpResourcesAfterFinishingDemo {
     public static void main(String[] args) {
         //traditional opening file and reading
         Path path = Paths.get("F:\\netjs\\test.txt");
-
     }
 
     public Mono<Resource> getFilePathResource() {
-        return Mono.just(new ClassPathResource("test.txt")).onErrorResume()
+        return Mono.just(new ClassPathResource("test.txt"));
     }
 
     /**
@@ -31,23 +32,21 @@ public class CleaningUpResourcesAfterFinishingDemo {
      * @param resource
      * @return
      */
-    public Mono<Integer> readFileFromResource(Mono<Resource> resource) {
-        return resource.map( resource1 ->  {
-            File file;
-            try {
-                file = resource1.getFile();
-                byte[] bytes = new byte[(int) file.length()];
-                FileInputStream fis = new FileInputStream(file);
-                fis.read(bytes);
-                fis.close();
-                return 10;
-            } catch (IOException e) {
-                return 10;
-            }
-        });
+    public Mono<Integer> readFileFromResource() throws IOException {
+        getFilePathResource().map(resource -> {
+            File file = resource.getFile();
+            FileReader fileReader = new FileReader(file);
+            BufferedReader bufferedReader = new BufferedReader(fileReader);
+            String line = bufferedReader.readLine();
+            bufferedReader.close();
+            return Mono.just(Integer.valueOf(line));
+        })
+
     }
 
     public Mono<File> loadTestResource() {
-        return Mono.usingWhen(getFilePathResource(), )
+        return Mono.defer(() -> {
+
+        });
     }
 }
