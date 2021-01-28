@@ -1,6 +1,5 @@
 package com.qsol.reactive;
 
-<<<<<<< Updated upstream
 import reactor.core.publisher.Mono;
 
 public class MonoUsingWhenDemo {
@@ -18,4 +17,7 @@ public class MonoUsingWhenDemo {
                 })
                 .subscribe(x -> System.out.println(x));
     }
+
+
+
 }
