@@ -24,9 +24,9 @@ import java.util.concurrent.Future;
 public class CleaningUpResourcesAfterFinishingDemo {
     public static void main(String[] args) throws InterruptedException, IOException, ExecutionException, URISyntaxException {
         //traditional opening file and reading
-        traditionalWayOfReading();
+        //traditionalWayOfReading();
 
-        //loadFileAsync();
+        loadFileAsync();
     }
 
     public static Mono<Resource> getFilePathResource() {
@@ -112,6 +112,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
      * Asynio file reading
      */
     public static void loadFileAsync() throws URISyntaxException, IOException, ExecutionException, InterruptedException {
+        int counter = 0;
         URI uri = new ClassPathResource("test.txt").getURI();
         Path path = Paths.get(uri);
         AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
@@ -121,9 +122,13 @@ public class CleaningUpResourcesAfterFinishingDemo {
 
         Future<Integer> operation = fileChannel.read(buffer, 0);
 
-        // run other code as operation continues in background
-        operation.get();
+        while(!operation.isDone()) {
+            //busy loop. This will eat CPU
+            counter++;
+        }
 
+        //when operation finishes, then buffer will contain data.
+        System.out.println("counter is "+ counter);
         String fileContent = new String(buffer.array()).trim();
         buffer.clear();
         System.out.println(fileContent);
