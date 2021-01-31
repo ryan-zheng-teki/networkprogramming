@@ -47,7 +47,7 @@ public class MonoErrorResumeDemo {
      */
     public static Mono<AsynchronousFileChannel> fileAsyncReadUsingWhen() {
         return Mono.fromCallable(() -> {
-            final URI uri = new ClassPathResource("test.txt").getURI();
+            final URI uri = new ClassPathResource("test.txt.bak").getURI();
             final Path path = Paths.get(uri);
             final AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
                     path, StandardOpenOption.READ);

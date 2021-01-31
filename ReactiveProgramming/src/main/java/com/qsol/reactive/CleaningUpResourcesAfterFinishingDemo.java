@@ -29,10 +29,11 @@ public class CleaningUpResourcesAfterFinishingDemo {
         //traditional opening file and reading
         //traditionalWayOfReading();
         //readFileFromResource();
-        //loadFileAsync();
+        loadFileAsync();
         //monoUsingDemo();
-        subscribeToBufferedDataAndReturnNewResource();
+        //subscribeToBufferedDataAndReturnNewResource();
     }
+
 
     public static Mono<Resource> getFilePathResource() {
         return Mono.just(new ClassPathResource("test.txt"));
@@ -44,6 +45,10 @@ public class CleaningUpResourcesAfterFinishingDemo {
      * If the file open is okay, i wanna read the content from the file. and
      * return the new resource. The real Subscriber is subscribing to the data read
      * from the file.
+     * <p>
+     * .onErrorMap(RuntimeException.class, e -> {
+     * return e.getCause();
+     * });
      *
      * @param
      * @return
@@ -54,6 +59,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
             String line = null;
             BufferedReader bufferedReader = null;
             try {
+                //asynchronous
                 file = resource.getFile();
                 final FileReader fileReader = new FileReader(file);
                 bufferedReader = new BufferedReader(fileReader);
@@ -65,7 +71,15 @@ public class CleaningUpResourcesAfterFinishingDemo {
         }).onErrorMap(RuntimeException.class, e -> {
             return e.getCause();
         });
-        dataResource.subscribe(x -> System.out.println("result is " + x));
+
+        dataResource.subscribe(
+                (x) -> {
+                    System.out.println("onNext " + x);
+                },
+                (e) -> {
+                    System.out.println("OnError " + e.getMessage());
+                },
+                (() -> System.out.println("OnComplete")));
     }
 
     public Mono<Integer> loadTestResource() {
@@ -86,7 +100,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
      */
 
     public static void traditionalWayOfReading() {
-        final Resource resource = new ClassPathResource("test.txt");
+        final Resource resource = new ClassPathResource("test.txt.bak");
         File file = null;
         String line = null;
         BufferedReader bufferedReader = null;
@@ -118,12 +132,11 @@ public class CleaningUpResourcesAfterFinishingDemo {
      */
     public static void loadFileAsync() throws URISyntaxException, IOException, ExecutionException, InterruptedException {
         final int counter = 0;
-        final URI uri = new ClassPathResource("test.txt").getURI();
+        final URI uri = new ClassPathResource("test.txt.bak").getURI();
         final Path path = Paths.get(uri);
         final AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
                 path, StandardOpenOption.READ);
         final ByteBuffer buffer = ByteBuffer.allocate(1024);
-
         /*
          The file read completionHandler is actually invoked in a different thread.
          maybe AsynchronousFileChannel channel already starts a different thread.This
@@ -158,13 +171,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
     }
 
     /**
-     * use Mono.usingWhen for the resource
-     * read the file, when the content becomes available, then notifiy the subscribers
-     * (1)can use the fileChannel.read return value as the resource
-     * (2)when the operation.isDone returns
-     * (3)I want to start to get the content from the buffer
-     * (4)the content of the buffer is sent to subscriber
-     * (5)after all, we need to do clean up.
+     * fromCallable takes one Callable interface which might throw exception.
      */
     public static Mono<AsynchronousFileChannel> fileAsyncReadUsingWhen() {
         return Mono.fromCallable(() -> {
@@ -173,6 +180,17 @@ public class CleaningUpResourcesAfterFinishingDemo {
             final AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
                     path, StandardOpenOption.READ);
             return fileChannel;
+        }).onErrorResume(e -> {
+            try {
+                final URI uri = new ClassPathResource("test.txt.bak").getURI();
+                final Path path = Paths.get(uri);
+                final AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
+                        path, StandardOpenOption.READ);
+                return Mono.just(fileChannel);
+            } catch (final IOException exception) {
+                return Mono.error(e);
+            }
+
         });
     }
 
@@ -196,7 +214,13 @@ public class CleaningUpResourcesAfterFinishingDemo {
                     final ByteBuffer buffer = ByteBuffer.allocate(1024);
                     //the second parameter says where to put the content into the buffer
                     final Future<Integer> operation = fileChannel.read(buffer, 0);
-                    //the reading might take some time. The buffer at this point could be empty.
+                    /*the reading might take some time. The buffer at this point could be empty.
+                   How to push the original data to the subscriber when it becomes available
+                   like 3 seconds later.
+                   (1) I might be able to start another thread, and put the subscriber on another thread
+                   (2) Is it able to put the subscriber in the current thread. But the real problem is how
+                   do i subscribe to the other subscriber. The asynchronous call is in another thread
+                     */
                     return Mono.just(new String(buffer.array()).trim());
                 },
                 (AsynchronousFileChannel fileChannel) -> {
