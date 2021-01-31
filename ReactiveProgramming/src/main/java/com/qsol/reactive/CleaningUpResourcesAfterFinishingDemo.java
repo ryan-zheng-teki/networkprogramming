@@ -2,31 +2,36 @@ package com.qsol.reactive;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 public class CleaningUpResourcesAfterFinishingDemo {
-    public static void main(String[] args) throws InterruptedException, IOException, ExecutionException, URISyntaxException {
+    public static void main(final String[] args) throws InterruptedException, IOException, ExecutionException, URISyntaxException {
         //traditional opening file and reading
         //traditionalWayOfReading();
-
-        loadFileAsync();
+        //readFileFromResource();
+        //loadFileAsync();
+        //monoUsingDemo();
+        subscribeToBufferedDataAndReturnNewResource();
     }
 
     public static Mono<Resource> getFilePathResource() {
@@ -39,43 +44,40 @@ public class CleaningUpResourcesAfterFinishingDemo {
      * If the file open is okay, i wanna read the content from the file. and
      * return the new resource. The real Subscriber is subscribing to the data read
      * from the file.
+     *
      * @param
      * @return
      */
-    public static Mono<Integer> readFileFromResource() {
-        return getFilePathResource().map(resource -> {
+    public static void readFileFromResource() {
+        final Mono<Integer> dataResource = getFilePathResource().map(resource -> {
             File file = null;
             String line = null;
             BufferedReader bufferedReader = null;
             try {
                 file = resource.getFile();
-                FileReader fileReader = new FileReader(file);
+                final FileReader fileReader = new FileReader(file);
                 bufferedReader = new BufferedReader(fileReader);
                 line = bufferedReader.readLine();
-            } catch (IOException e) {
-                return 12;
-            } finally {
-                try {
-                    bufferedReader.close();
-                } catch (IOException e) {
-                    return 14;
-                }
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
             }
             return Integer.valueOf(line);
+        }).onErrorMap(RuntimeException.class, e -> {
+            return e.getCause();
         });
+        dataResource.subscribe(x -> System.out.println("result is " + x));
     }
 
     public Mono<Integer> loadTestResource() {
         return Mono.defer(() -> {
-            int i = 3;
-            if(i % 3 == 0) {
+            final int i = 3;
+            if (i % 3 == 0) {
                 return Mono.just(i);
             } else {
                 return Mono.error(new NullPointerException("invalid argument"));
             }
         });
     }
-
 
     /**
      * Traditional way of reading the file
@@ -84,58 +86,147 @@ public class CleaningUpResourcesAfterFinishingDemo {
      */
 
     public static void traditionalWayOfReading() {
-        Resource resource = new ClassPathResource("test.txt");
+        final Resource resource = new ClassPathResource("test.txt");
         File file = null;
         String line = null;
         BufferedReader bufferedReader = null;
         try {
             file = resource.getFile();
-            FileReader fileReader = new FileReader(file);
+            final FileReader fileReader = new FileReader(file);
             bufferedReader = new BufferedReader(fileReader);
             line = bufferedReader.readLine();
             System.out.println(Integer.valueOf(line));
-        } catch (IOException e) {
+        } catch (final IOException e) {
             System.out.println("existing block");
-            return ;
+            return;
         } finally {
             try {
-                if(bufferedReader != null) {
+                if (bufferedReader != null) {
                     bufferedReader.close();
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 System.out.println("existing block finally");
             }
         }
     }
 
     /**
-     * Asynio file reading
+     * Asynio file reading. We can provide a CompletionHandler to the file read.
+     * When the FileRead operation is completed, then the CompletionHandler will be
+     * invoked. The current thread can actually process other task. The completionHandler
+     * is called asynchronously.
      */
     public static void loadFileAsync() throws URISyntaxException, IOException, ExecutionException, InterruptedException {
-        int counter = 0;
-        URI uri = new ClassPathResource("test.txt").getURI();
-        Path path = Paths.get(uri);
-        AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
+        final int counter = 0;
+        final URI uri = new ClassPathResource("test.txt").getURI();
+        final Path path = Paths.get(uri);
+        final AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
                 path, StandardOpenOption.READ);
+        final ByteBuffer buffer = ByteBuffer.allocate(1024);
 
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        /*
+         The file read completionHandler is actually invoked in a different thread.
+         maybe AsynchronousFileChannel channel already starts a different thread.This
+         explains why fileChannel.get() will block the current thread. Because it is
+         actually waiting for another thread to finish.
+        */
+        fileChannel.read(buffer, 0, buffer,
+                new CompletionHandler<Integer, ByteBuffer>() {
+                    @Override
+                    public void completed(final Integer result, final ByteBuffer attachment) {
+                        System.out.println("result = " + result);
+                        System.out.println("thread id is " + Thread.currentThread().getId());
+                        attachment.flip();
+                        final byte[] data = new byte[attachment.limit()];
+                        attachment.get(data);
+                        System.out.println(new String(data));
+                        attachment.clear();
+                    }
 
-        Future<Integer> operation = fileChannel.read(buffer, 0);
+                    @Override
+                    public void failed(final Throwable exc, final ByteBuffer attachment) {
 
-        while(!operation.isDone()) {
-            //busy loop. This will eat CPU
-            counter++;
-        }
-
+                    }
+                });
+        System.out.println("counter is " + counter);
+        System.out.println("thread id is " + Thread.currentThread().getId());
+        Thread.sleep(10000);
         //when operation finishes, then buffer will contain data.
-        System.out.println("counter is "+ counter);
-        String fileContent = new String(buffer.array()).trim();
+        final String fileContent = new String(buffer.array()).trim();
         buffer.clear();
         System.out.println(fileContent);
     }
 
     /**
-     * Asyncio with reactor file reading
+     * use Mono.usingWhen for the resource
+     * read the file, when the content becomes available, then notifiy the subscribers
+     * (1)can use the fileChannel.read return value as the resource
+     * (2)when the operation.isDone returns
+     * (3)I want to start to get the content from the buffer
+     * (4)the content of the buffer is sent to subscriber
+     * (5)after all, we need to do clean up.
      */
+    public static Mono<AsynchronousFileChannel> fileAsyncReadUsingWhen() {
+        return Mono.fromCallable(() -> {
+            final URI uri = new ClassPathResource("test.txt").getURI();
+            final Path path = Paths.get(uri);
+            final AsynchronousFileChannel fileChannel = AsynchronousFileChannel.open(
+                    path, StandardOpenOption.READ);
+            return fileChannel;
+        });
+    }
 
+    /**
+     * Mono.usingWhen
+     * (1)first parameter The ResourceSupplier. The ResourceSupplier can either
+     * be publisher or callable. If its not callable. Then it must be publisher.
+     * <p>
+     * (2)second parameter: what to do to this resource. And will return a new
+     * SourcePublisher. This is the real data publisher that will be subscribed
+     * by the users
+     * <p>
+     * (3) the asyncCleanup. After the resource is being used, what to do with this
+     * resource. Either close it or clean it.
+     * (4) I have to use BlockingGet to get the value.
+     */
+    public static void subscribeToBufferedDataAndReturnNewResource() {
+        final Mono<String> stringResource = Mono.usingWhen(
+                fileAsyncReadUsingWhen(),
+                (AsynchronousFileChannel fileChannel) -> {
+                    final ByteBuffer buffer = ByteBuffer.allocate(1024);
+                    //the second parameter says where to put the content into the buffer
+                    final Future<Integer> operation = fileChannel.read(buffer, 0);
+                    //the reading might take some time. The buffer at this point could be empty.
+                    return Mono.just(new String(buffer.array()).trim());
+                },
+                (AsynchronousFileChannel fileChannel) -> {
+                    try {
+                        fileChannel.close();
+                    } catch (final IOException e) {
+                        return Mono.empty();
+                    }
+                    return Mono.empty();
+                });
+
+        //the elastic scheduler will always return the same scheduler.
+        stringResource.subscribeOn(Schedulers.elastic()).log().subscribe(x -> {
+            if (!StringUtils.hasLength(x)) {
+                System.out.println("The file has not finished reading");
+            }
+        });
+    }
+
+    public static void monoUsingDemo() {
+        final List<Integer> intArrays = new ArrayList<>() {
+            {
+                this.add(12);
+                this.add(30);
+            }
+        };
+        System.out.println("init length " + intArrays.size());
+        Flux.using(() -> intArrays,
+                (list) -> Flux.fromIterable(list),
+                (list) -> list.clear()).subscribe(x -> System.out.println(x));
+        System.out.println("after cleaning" + intArrays.size());
+    }
 }

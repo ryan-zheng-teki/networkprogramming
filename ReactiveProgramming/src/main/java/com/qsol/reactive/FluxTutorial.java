@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -77,5 +78,27 @@ public class FluxTutorial {
                 add("test-two");
             }
         };
+    }
+
+    /*
+    The map actually throws one exception. The map is able to take one lamda
+    for converting the exception from checked exception to unchecked exception.
+     */
+    private static void startingAnotherPipelineInsideOnNext() {
+        Flux.range(0, Runtime.getRuntime().availableProcessors() * 2)
+                .subscribeOn(Schedulers.parallel())
+                .map(i -> {
+                    CountDownLatch latch = new CountDownLatch(1);
+
+                    Mono.delay(Duration.ofMillis(i * 100))
+                            .subscribe(it -> latch.countDown());
+                    try {
+                        latch.await();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return i;
+                })
+                .blockLast();
     }
 }
