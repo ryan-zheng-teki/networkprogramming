@@ -2,10 +2,9 @@ package com.qsol.reactive;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -22,16 +21,16 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 public class CleaningUpResourcesAfterFinishingDemo {
     public static void main(final String[] args) throws InterruptedException, IOException, ExecutionException, URISyntaxException {
         //traditional opening file and reading
         //traditionalWayOfReading();
         //readFileFromResource();
-        loadFileAsync();
+        //loadFileAsync();
         //monoUsingDemo();
-        //subscribeToBufferedDataAndReturnNewResource();
+        Hooks.onOperatorDebug();
+        subscribeToBufferedDataAndReturnNewResource();
     }
 
 
@@ -207,21 +206,12 @@ public class CleaningUpResourcesAfterFinishingDemo {
      * resource. Either close it or clean it.
      * (4) I have to use BlockingGet to get the value.
      */
-    public static void subscribeToBufferedDataAndReturnNewResource() {
+    public static void subscribeToBufferedDataAndReturnNewResource() throws InterruptedException {
+        System.out.println("main thread is " + Thread.currentThread().getId());
         final Mono<String> stringResource = Mono.usingWhen(
                 fileAsyncReadUsingWhen(),
                 (AsynchronousFileChannel fileChannel) -> {
-                    final ByteBuffer buffer = ByteBuffer.allocate(1024);
-                    //the second parameter says where to put the content into the buffer
-                    final Future<Integer> operation = fileChannel.read(buffer, 0);
-                    /*the reading might take some time. The buffer at this point could be empty.
-                   How to push the original data to the subscriber when it becomes available
-                   like 3 seconds later.
-                   (1) I might be able to start another thread, and put the subscriber on another thread
-                   (2) Is it able to put the subscriber in the current thread. But the real problem is how
-                   do i subscribe to the other subscriber. The asynchronous call is in another thread
-                     */
-                    return Mono.just(new String(buffer.array()).trim());
+                    return new AsynchronousFilePublisher(fileChannel);
                 },
                 (AsynchronousFileChannel fileChannel) -> {
                     try {
@@ -231,13 +221,8 @@ public class CleaningUpResourcesAfterFinishingDemo {
                     }
                     return Mono.empty();
                 });
-
         //the elastic scheduler will always return the same scheduler.
-        stringResource.subscribeOn(Schedulers.elastic()).log().subscribe(x -> {
-            if (!StringUtils.hasLength(x)) {
-                System.out.println("The file has not finished reading");
-            }
-        });
+        stringResource.log().block();
     }
 
     public static void monoUsingDemo() {
