@@ -110,7 +110,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
             line = bufferedReader.readLine();
             System.out.println(Integer.valueOf(line));
         } catch (final IOException e) {
-            System.out.println("existing block");
+            System.out.println(e.getMessage());
             return;
         } finally {
             try {
@@ -118,7 +118,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
                     bufferedReader.close();
                 }
             } catch (final IOException e) {
-                System.out.println("existing block finally");
+                System.out.println(e.getMessage());
             }
         }
     }
@@ -172,7 +172,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
     /**
      * fromCallable takes one Callable interface which might throw exception.
      */
-    public static Mono<AsynchronousFileChannel> fileAsyncReadUsingWhen() {
+    public static Mono<AsynchronousFileChannel> asyncFileChannelResource() {
         return Mono.fromCallable(() -> {
             final URI uri = new ClassPathResource("test.txt").getURI();
             final Path path = Paths.get(uri);
@@ -189,7 +189,6 @@ public class CleaningUpResourcesAfterFinishingDemo {
             } catch (final IOException exception) {
                 return Mono.error(e);
             }
-
         });
     }
 
@@ -208,10 +207,10 @@ public class CleaningUpResourcesAfterFinishingDemo {
      */
     public static void subscribeToBufferedDataAndReturnNewResource() throws InterruptedException {
         System.out.println("main thread is " + Thread.currentThread().getId());
-        final Mono<String> stringResource = Mono.usingWhen(
-                fileAsyncReadUsingWhen(),
+        final Mono<String> fileContentResource = Mono.usingWhen(
+                asyncFileChannelResource(),
                 (AsynchronousFileChannel fileChannel) -> {
-                    return new AsynchronousFilePublisher(fileChannel);
+                    return new AsyncFileReadPublisher(fileChannel);
                 },
                 (AsynchronousFileChannel fileChannel) -> {
                     try {
@@ -221,8 +220,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
                     }
                     return Mono.empty();
                 });
-        //the elastic scheduler will always return the same scheduler.
-        stringResource.log().block();
+        fileContentResource.block();
     }
 
     public static void monoUsingDemo() {
