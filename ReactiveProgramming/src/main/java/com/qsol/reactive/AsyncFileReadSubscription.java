@@ -31,7 +31,7 @@ public class AsyncFileReadSubscription implements Subscription {
                         final byte[] data = new byte[AsyncFileReadSubscription.this.buffer.limit()];
                         AsyncFileReadSubscription.this.buffer.get(data);
                         AsyncFileReadSubscription.this.buffer.clear();
-                        subscriber.onNext(result);
+                        subscriber.onNext(new String(data));
                         //don't forget to call onComplete for the subscriber
                         subscriber.onComplete();
                     }

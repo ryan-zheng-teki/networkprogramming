@@ -5,6 +5,7 @@ import org.springframework.core.io.Resource;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -30,7 +31,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
         //loadFileAsync();
         //monoUsingDemo();
         Hooks.onOperatorDebug();
-        subscribeToBufferedDataAndReturnNewResource();
+        useFileOutputResource();
     }
 
 
@@ -205,7 +206,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
      * resource. Either close it or clean it.
      * (4) I have to use BlockingGet to get the value.
      */
-    public static void subscribeToBufferedDataAndReturnNewResource() throws InterruptedException {
+    public static Mono<String> fileContentAsResource() {
         System.out.println("main thread is " + Thread.currentThread().getId());
         final Mono<String> fileContentResource = Mono.usingWhen(
                 asyncFileChannelResource(),
@@ -220,7 +221,18 @@ public class CleaningUpResourcesAfterFinishingDemo {
                     }
                     return Mono.empty();
                 });
-        fileContentResource.block();
+        return fileContentResource;
+    }
+
+    public static void useFileOutputResource() throws InterruptedException {
+        Mono.just("332").publishOn(Schedulers.boundedElastic())
+                .map(x -> {
+                    final String output = x + fileContentAsResource().block();
+                    return output;
+                })
+                .subscribe(x -> System.out.println(x));
+        System.out.println("Hey, i am here");
+        Thread.sleep(2000);
     }
 
     public static void monoUsingDemo() {
