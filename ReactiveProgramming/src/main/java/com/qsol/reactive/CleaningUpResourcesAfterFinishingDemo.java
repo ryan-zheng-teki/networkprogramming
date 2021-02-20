@@ -32,6 +32,7 @@ public class CleaningUpResourcesAfterFinishingDemo {
         //monoUsingDemo();
         Hooks.onOperatorDebug();
         useFileOutputResource();
+        Thread.sleep(2000);
     }
 
 
@@ -225,14 +226,13 @@ public class CleaningUpResourcesAfterFinishingDemo {
     }
 
     public static void useFileOutputResource() throws InterruptedException {
-        Mono.just("332").publishOn(Schedulers.boundedElastic())
+        Mono.just("332")
                 .map(x -> {
                     final String output = x + fileContentAsResource().block();
                     return output;
                 })
                 .subscribe(x -> System.out.println(x));
         System.out.println("Hey, i am here");
-        Thread.sleep(2000);
     }
 
     public static void monoUsingDemo() {
